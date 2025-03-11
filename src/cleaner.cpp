@@ -19,20 +19,19 @@ bool Cleaner::removeMetadata(const std::string& filePath, const std::vector<std:
 }
 
 bool Cleaner::osRemoveMetadata(const std::string& filePath) {
-	std::ostringstream chmodCommand;
+	std::ostringstream chmodCommand, touchCommand, convertCommand;
+
     chmodCommand << "chmod u+rx " << filePath;
-    if (system(chmodCommand.str().c_str()) != 0) {
-        return false;
-    }
-	std::ostringstream touchCommand;
     touchCommand << "touch -r /dev/null " << filePath;
-    if (system(touchCommand.str().c_str()) != 0) {
-        return false;
-    }
-	std::ostringstream convertCommand;
 	convertCommand << "magick " << filePath << " -strip " << filePath;
-	if (system(convertCommand.str().c_str()) != 0) {
+
+    int chmodResult = system(chmodCommand.str().c_str());
+	int touchResult = system(touchCommand.str().c_str());
+	int convertResult = system(convertCommand.str().c_str());
+
+	if (chmodResult != 0 || touchResult != 0 || convertResult != 0) {
 		return false;
 	}
+
     return true;
 }
