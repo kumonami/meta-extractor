@@ -1,37 +1,46 @@
 #include "../include/cleaner.hpp"
 #include <sstream>
 
+
 bool Cleaner::removeMetadata(const std::string& filePath, const std::vector<std::string>& tags) {
-	std::ostringstream command;
-	command << "exiftool -overwrite_original ";
+	std::vector<std::string> commandParts = {"exiftool", "-overwrite_original"};
+
 	if (tags.empty() || tags[0] == "all") {
-		command << "-all= -XMP:All= -IPTC:All= -EXIF:All= -Comment= ";
+		commandParts.insert(commandParts.end(), {"-all=", "-XMP:All=", "-IPTC:All=", "-EXIF:All=", "-Comment="});
 	} else {
-		for (const auto& tag : tags) { 
-			command << "-" << tag << "= ";
+		for (const auto& tag : tags) {
+			commandParts.push_back("-" + tag + "=");
 		}
 	}
-	command << " " << filePath;
-	if (system(command.str().c_str()) != 0) {
-        return false;
-    }
-	return osRemoveMetadata(filePath);
-}
+	commandParts.push_back(filePath);
 
-bool Cleaner::osRemoveMetadata(const std::string& filePath) {
-	std::ostringstream chmodCommand, touchCommand, convertCommand;
-
-    chmodCommand << "chmod u+rx " << filePath;
-    touchCommand << "touch -r /dev/null " << filePath;
-	convertCommand << "magick " << filePath << " -strip " << filePath;
-
-    int chmodResult = system(chmodCommand.str().c_str());
-	int touchResult = system(touchCommand.str().c_str());
-	int convertResult = system(convertCommand.str().c_str());
-
-	if (chmodResult != 0 || touchResult != 0 || convertResult != 0) {
+	if (system(join(commandParts, " ").c_str()) != 0) {
 		return false;
 	}
 
-    return true;
+	return (tags.empty() || tags[0] == "all") ? osRemoveMetadata(filePath) : true;
+}
+
+bool Cleaner::osRemoveMetadata(const std::string& filePath) {
+	std::vector<std::string> commands = {
+		"chmod u+rw " + filePath,
+		"touch -r /dev/null " + filePath,
+		"magick " + filePath + " -strip " + filePath
+	};
+
+	for (const auto& cmd : commands) {
+		if (system(cmd.c_str()) != 0) {
+			return false;
+		}
+	}
+	return true;
+}
+
+std::string Cleaner::join(const std::vector<std::string>& parts, const std::string& delimiter) {
+	std::ostringstream joined;
+	for (size_t i = 0; i < parts.size(); ++i) {
+		if (i > 0) joined << delimiter;
+		joined << parts[i];
+	}
+	return joined.str();
 }
